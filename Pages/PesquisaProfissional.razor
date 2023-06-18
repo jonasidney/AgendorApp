@@ -1,0 +1,97 @@
+﻿@page "/pesquisa_profissional"
+@using MauiBlazorSQLServer.Data;
+@using Radzen;
+@using CRUDBlazorSQLServer.Data;
+@using System.Diagnostics;
+@using MauiBlazorSQLServer.Data.Database;
+@inject DialogService dialogService
+@inject NavigationManager UriHelper
+
+<center><h3>Lista de profissionais da empresa</h3></center>
+<PageTitle>Lista de profissionais da empresa</PageTitle>
+<br />
+<RadzenDataGrid @ref="dataGrid" style="color: #ffffff; --rz-grid-header-background-color: #ffffff; --rz-grid-header-font-weight: bold; padding-right: 10px; padding-left: 0px; margin-top: -10px;"
+                Data="@profissionaisDaEmpresa.FindAll(e => e.Ativo)" TItem="Profissional" AllowFiltering="true"
+                GridLines="@Radzen.DataGridGridLines.Horizontal" AllowPaging="true" AllowSorting="true" AllowRowSelectOnRowClick="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="Profissional" Property="Nome" Title="PROFISSIONAL" MinWidth="120px" Frozen="true">
+            <Template Context="prof">
+                <p style="white-space:pre-wrap; margin: auto;">@prof.Nome (@prof.Atividade)</p>
+            </Template>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn TItem="Profissional" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="60px">
+            <Template Context="prof">
+                <RadzenButton ButtonStyle="ButtonStyle.Warning" Icon="edit" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1"
+                              style="padding: 0px; margin: 0px;"
+                              @onclick:stopPropagation="true" Click="@(args => AcaoBotaoEditarProfissional(prof))">
+                </RadzenButton>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Profissional" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="60px">
+            <Template Context="prof">
+                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1"
+                              style="padding: 0px; margin: 0px;"
+                              @onclick:stopPropagation="true" Click="@(args => AcaoBotaoDeletarProfissional(prof))">
+                </RadzenButton>
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+<br />
+<center>
+    <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" class="mt-2 mb-4" Text="Adicionar" Click="@AcaoBotaoAdicionarProfissional" />
+</center>
+
+
+@code {
+    private RadzenDataGrid<Profissional> dataGrid;
+    private List<Profissional> profissionaisDaEmpresa;
+    ProfissionalDAO dao = new();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        profissionaisDaEmpresa = dao.pesquisar("");
+    }
+
+
+    async void AcaoBotaoDeletarProfissional(Profissional prof)
+    {
+        var confirmResult = await dialogService.Confirm("Deseja realmente excluir este profissional?", "ATENÇÃO",
+         new ConfirmOptions()
+             {
+                 OkButtonText = "SIM",
+                 CancelButtonText = "NÃO"
+             });
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            prof.Ativo = false;
+            if (dao.excluir(prof.Codigo))
+            {
+                await dialogService.Alert("Profissional excluído com sucesso!", "SUCESSO", new AlertOptions() { OkButtonText = "OK" });
+            }
+            else
+            {
+                await dialogService.Alert("Falha ao excluir profissional!", "ERRO", new AlertOptions() { OkButtonText = "OK" });
+            }
+            profissionaisDaEmpresa = dao.pesquisar("");
+            this.StateHasChanged();
+            await dataGrid.Reload();
+        }
+    }
+
+    async void AcaoBotaoEditarProfissional(Profissional prof)
+    {
+        UriHelper.NavigateTo("/cadastro_profissional/" + prof.Codigo);
+    }
+
+    async void AcaoBotaoAdicionarProfissional()
+    {
+        UriHelper.NavigateTo("/cadastro_profissional/0");
+    }
+
+}

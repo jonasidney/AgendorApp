@@ -1,0 +1,142 @@
+﻿@page "/edicao_horarios_profissional/{servicoProfissionalOriginal}"
+@using MauiBlazorSQLServer.Data;
+@using Radzen;
+@using CRUDBlazorSQLServer.Data;
+@using System.Diagnostics;
+@using MauiBlazorSQLServer.Data.Database;
+@inject DialogService dialogService
+
+<EditForm Model="@servicoProfissionalEmEdicao" OnValidSubmit="@AcaoBotaoSalvar">
+    <DataAnnotationsValidator />
+
+    <RadzenLabel Text="Servico" Component="comboServico" />
+    <RadzenDropDown Name="comboServico" style="width: 100%" Data="listaServicosEmpresa" TValue="Servico" @bind-Value=@servicoProfissionalEmEdicao.Servico
+                    AllowClear="true" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive">
+    </RadzenDropDown>
+
+    <br />
+    <hr style="border-top: 3px solid #bbb;">
+
+    <RadzenLabel Text="Dia Semana: " Component="combodia" />
+    <RadzenDropDown Name="combodia" Style="width: 100%"
+                    Data="DiaSemana.getDiasSemana()" TValue="DiaSemana" @bind-Value=@diaSemanaSelecionado
+                    AllowClear="true" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive">
+    </RadzenDropDown> <br />
+
+    <div style="width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between;">
+        <div style="width:auto;  min-width: 100px; margin-top: 10px;">
+            <label for="hora_ini">Hora Início: </label>
+            <div id="hora_ini">
+                <RadzenNumeric @bind-Value=@horaInicio Style="width: 70px;" Min="01" Max="23" />
+                <RadzenLabel Text=":" Component="minuto_ini" />
+                <RadzenNumeric Name="minuto_ini" @bind-Value=@minutoInicio Min="00" Max="59" Style="width: 70px;" />
+            </div>
+        </div>
+        <div style="width:auto;  min-width: 100px;  margin-top: 10px;">
+            <label for="hora_fim">Hora Término: </label>
+            <div id="hora_fim">
+                <RadzenNumeric @bind-Value=@horaFim Style="width: 70px;" Min="01" Max="23" />
+                <RadzenLabel Text=":" Component="minuto_fim" />
+                <RadzenNumeric Name="minuto_fim" @bind-Value=@minutoFim Min="00" Max="59" Style="width: 70px;" />
+            </div>
+        </div>
+    </div>
+    <RadzenButton Name="btn_adicionar" style="width: 100%; margin-top: 10px" ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" class="mt-2 mb-4" Text="Adicionar" Click="@AcaoBotaoInserirHorario" />
+
+
+    <center>
+        <label for="quadro_horarios">Quadro de horários</label>
+        <RadzenDataGrid id="quadro_horarios" @ref="dataGrid" style="color: #ffffff; --rz-grid-header-background-color: #ffffff; --rz-grid-header-font-weight: bold; padding-right: 10px; padding-left: 0px;"
+                        Data="@servicoProfissionalEmEdicao.Horarios.FindAll(e => e.Ativo)" TItem="Horario"
+                        GridLines="@Radzen.DataGridGridLines.Horizontal" AllowPaging="true" AllowSorting="true" AllowRowSelectOnRowClick="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="Horario" Property="HoraInicio" Title="DIA SEMANA" Width="130px">
+                    <Template Context="hor">
+                        <p style="white-space:pre-wrap">@hor.Dia.Nome</p>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Horario" Property="HoraInicio" Title="HORA INÍCIO-FIM" MinWidth="170px">
+                    <Template Context="hor">
+                        <p style="white-space:pre-wrap">@hor.HoraInicio - @hor.HoraFim</p>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="Horario" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="60px">
+                    <Template Context="hor">
+                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1"
+                                      style="padding: 0px; margin: 0px;"
+                                      @onclick:stopPropagation="true" Click="@(args => AcaoBotaoDeletarHorario(hor))">
+                        </RadzenButton>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </center>
+    <br />
+    <ValidationSummary />
+    <br /><br />
+    <div style="position: absolute; bottom: 10px; width: 100%">
+        <center>
+            <RadzenButton type="submit" Text="SALVAR" class="me-1" Style="width: 100px;" />
+            <RadzenButton Text="CANCELAR" Click="() => dialogService.Close(null)" ButtonStyle="ButtonStyle.Light" class="me-1" />
+        </center>
+    </div>
+
+</EditForm>
+
+@code {
+    private RadzenDataGrid<Horario> dataGrid;
+
+    [Parameter]
+    public ServicoProfissional servicoProfissionalOriginal { get; set; }
+
+    public ServicoProfissional servicoProfissionalEmEdicao = new();
+    private DiaSemana diaSemanaSelecionado;
+    int horaInicio;
+    int minutoInicio;
+    int horaFim;
+    int minutoFim;
+
+    private ServicoDAO dao = new();
+    private List<Servico> listaServicosEmpresa = new List<Servico>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        listaServicosEmpresa = dao.listarServicosEmpresa();
+        servicoProfissionalEmEdicao.Servico = servicoProfissionalOriginal.Servico;
+        servicoProfissionalEmEdicao.Horarios = servicoProfissionalOriginal.Horarios;
+    }
+
+    private void AcaoBotaoSalvar()
+    {
+        dialogService.Close(servicoProfissionalEmEdicao);
+    }
+
+    private async void AcaoBotaoDeletarHorario(Horario horario)
+    {
+        var confirmResult = await dialogService.Confirm("Deseja realmente excluir este serviço?", "ATENÇÃO",
+         new ConfirmOptions()
+             {
+                 OkButtonText = "SIM",
+                 CancelButtonText = "NÃO"
+             });
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            horario.Ativo = false;
+            this.StateHasChanged();
+            await dataGrid.Reload();
+        }
+    }
+
+    private async void AcaoBotaoInserirHorario()
+    {
+        Horario horario = new();
+        horario.Dia = diaSemanaSelecionado;
+        horario.HoraInicio = new TimeOnly(horaInicio, minutoInicio);
+        horario.HoraFim = new TimeOnly(horaFim, minutoFim);
+        servicoProfissionalEmEdicao.Horarios.Add(horario);
+        this.StateHasChanged();
+        await dataGrid.Reload();
+    }
+}

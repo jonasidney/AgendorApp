@@ -1,0 +1,73 @@
+﻿@page "/cadastro_servico/{idServicoASerCarregado:int}"
+@using MauiBlazorSQLServer.Data;
+@using Radzen;
+@using CRUDBlazorSQLServer.Data;
+@using System.Diagnostics;
+@using MauiBlazorSQLServer.Data.Database;
+@inject DialogService dialogService
+@inject NavigationManager UriHelper
+
+<center><h3>Cadastro de Servicos</h3></center>
+<PageTitle>Cadastro de Servicos</PageTitle>
+
+<EditForm Model="@servicoEmEdicao" OnValidSubmit="@AcaoBotaoSalvar">
+    <DataAnnotationsValidator />
+
+    <label for="nome">Nome: </label>
+    <InputText id="nome" @bind-Value="servicoEmEdicao.Descricao" style="width: 100%" /><br /><br />
+
+    <label for="valor">Valor: </label>
+    <RadzenNumeric id="valor" @bind-Value="servicoEmEdicao.Valor" style="width: 100%" /><br />
+    <br />
+    <br />
+    <ValidationSummary />
+
+    <center>
+        <RadzenButton type="submit" Text="SALVAR" class="me-1" Style="width: 100px;" />
+        <RadzenButton Text="CANCELAR" Click="() => {FecharTelaCadastro();}" ButtonStyle="ButtonStyle.Light" class="me-1" />
+    </center>
+    <br />   <br />   <br />
+</EditForm>
+
+@code {
+    private RadzenDataGrid<ServicoProfissional> dataGrid;
+    ServicoDAO dao = new();
+
+    [Parameter]
+    public int idServicoASerCarregado { get; set; }
+
+    private Servico servicoEmEdicao;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        if (idServicoASerCarregado > 0)
+        {
+            servicoEmEdicao = dao.carregarTodosOsDados(idServicoASerCarregado);
+        }
+        else
+        {
+            servicoEmEdicao = new();
+        }
+    }
+
+    private async void AcaoBotaoSalvar()
+    {        
+        if (dao.gravar(this.servicoEmEdicao))
+        {
+            await dialogService.Alert("Servico salvo com sucesso!", "SUCESSO", new AlertOptions() { OkButtonText = "OK" });
+            FecharTelaCadastro();
+        }
+        else
+        {
+            await dialogService.Alert("Falha ao gravar dados!", "ERRO", new AlertOptions() { OkButtonText = "OK" });
+        }
+    }
+
+    private void FecharTelaCadastro()
+    {
+        UriHelper.NavigateTo("pesquisa_servico");        
+    }
+
+}

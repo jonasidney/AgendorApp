@@ -1,0 +1,174 @@
+﻿@page "/cadastro_profissional/{idProfissionalASerCarregado:int}"
+@using MauiBlazorSQLServer.Data;
+@using Radzen;
+@using CRUDBlazorSQLServer.Data;
+@using System.Diagnostics;
+@using MauiBlazorSQLServer.Data.Database;
+@inject DialogService dialogService
+@inject NavigationManager UriHelper
+
+<center><h3>Cadastro de Profissionais</h3></center>
+<PageTitle>Cadastro de Profissionais</PageTitle>
+
+<EditForm Model="@profissionalEmEdicao" OnValidSubmit="@AcaoBotaoSalvar">
+    <DataAnnotationsValidator />
+
+    <label for="nome">Nome: </label>
+    <InputText id="nome" @bind-Value="profissionalEmEdicao.Nome" style="width: 100%" /><br /><br />
+
+    <label for="atividade">Atividade: </label>
+    <InputText id="atividade" @bind-Value="profissionalEmEdicao.Atividade" style="width: 100%" /><br />
+    <br />
+
+    <label for="servicos_prestados">Serviços prestados:</label>
+    <RadzenCard id="servicos_prestados"
+                style="color: #ffffff; margin:0px; padding: 5px; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000; border-top: 1px solid #000000">
+
+        <center>
+            <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" class="mt-2 mb-4" Text="Adicionar" Click="@AcaoBotaoInserirServico" />
+
+            <RadzenDataGrid @ref="dataGrid" style="color: #ffffff; --rz-grid-header-background-color: #ffffff; --rz-grid-header-font-weight: bold; padding-right: 10px; padding-left: 0px; margin-top: -10px;"
+                            Data="@profissionalEmEdicao.ServicosPrestados.FindAll(e => e.Ativo)" TItem="ServicoProfissional"
+                            GridLines="@Radzen.DataGridGridLines.Horizontal" AllowPaging="true" AllowSorting="true" AllowRowSelectOnRowClick="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ServicoProfissional" Property="Servico.Descricao" Title="SERVIÇOS" MinWidth="120px" Frozen="true">
+                        <Template Context="servprof">
+                            <p style="white-space:pre-wrap">@servprof.Servico.Descricao</p>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="ServicoProfissional" Context="hor" Width="220px">
+                        <HeaderTemplate>
+                            <p style="width: 220px; margin-left: -12px; padding: 0px; white-space:pre-wrap; justify-content: center; text-align: center; white-space: normal; vertical-align: middle;">HORÁRIOS</p>
+                        </HeaderTemplate>
+                        <Template Context="servprof">
+                            <div style="margin-left: -12px;">
+                                <table>
+                                    <tbody>
+                                        @foreach (var horario in servprof.Horarios)
+                                        {
+                                            <tr>
+                                                <td>@(horario.Dia.Nome): @(horario.HoraInicio.Hour.ToString("00")):@(horario.HoraInicio.Minute.ToString("00")) - @(horario.HoraFim.Hour.ToString("00")):@(horario.HoraFim.Minute.ToString("00"))</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ServicoProfissional" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="60px">
+                        <Template Context="servprof">
+                            <RadzenButton ButtonStyle="ButtonStyle.Warning" Icon="edit" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1"
+                                          style="padding: 0px; margin: 0px;"
+                                          @onclick:stopPropagation="true" Click="@(args => AcaoBotaoEditarServico(servprof))">
+                            </RadzenButton>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ServicoProfissional" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="60px">
+                        <Template Context="servprof">
+                            <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" class="my-1 ms-1"
+                                          style="padding: 0px; margin: 0px;"
+                                          @onclick:stopPropagation="true" Click="@(args => AcaoBotaoDeletarServico(servprof))">
+                            </RadzenButton>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </center>
+    </RadzenCard>
+    <br />
+    <ValidationSummary />
+
+    <center>
+        <RadzenButton type="submit" Text="SALVAR" class="me-1" Style="width: 100px;" />
+        <RadzenButton Text="CANCELAR" Click="() => {FecharTelaCadastro();}" ButtonStyle="ButtonStyle.Light" class="me-1" />
+    </center>
+    <br />   <br />   <br />
+</EditForm>
+
+@code {
+    private RadzenDataGrid<ServicoProfissional> dataGrid;
+    ProfissionalDAO dao = new();
+
+    [Parameter]
+    public int idProfissionalASerCarregado { get; set; }
+
+    private Profissional profissionalEmEdicao;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        if (idProfissionalASerCarregado > 0)
+        {
+            profissionalEmEdicao = dao.carregarTodosOsDados(idProfissionalASerCarregado);
+        }
+        else
+        {
+            profissionalEmEdicao = new();
+        }
+    }
+
+    private async void AcaoBotaoSalvar()
+    {        
+        if (dao.gravar(this.profissionalEmEdicao))
+        {
+            await dialogService.Alert("Profissional salvo com sucesso!", "SUCESSO", new AlertOptions() { OkButtonText = "OK" });
+            FecharTelaCadastro();
+        }
+        else
+        {
+            await dialogService.Alert("Falha ao gravar dados!", "ERRO", new AlertOptions() { OkButtonText = "OK" });
+        }
+    }
+
+    async void AcaoBotaoDeletarServico(ServicoProfissional servicoProf)
+    {
+        var confirmResult = await dialogService.Confirm("Deseja realmente excluir este serviço?", "ATENÇÃO",
+         new ConfirmOptions()
+             {
+                 OkButtonText = "SIM",
+                 CancelButtonText = "NÃO"
+             });
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            servicoProf.Ativo = false;
+            this.StateHasChanged();
+            await dataGrid.Reload();
+        }
+    }
+
+    async void AcaoBotaoEditarServico(ServicoProfissional servicoProf)
+    {
+        var result = await dialogService.OpenAsync<DialogoEdicaoHorariosProfissional>(
+                       "SERVIÇOS E HORÁRIOS",
+                       new Dictionary<string, object>() { { "servicoProfissionalOriginal", servicoProf } },
+                       new DialogOptions() { Width = "500px", Height = "620px", Resizable = true, Draggable = true });
+        if (result != null)
+        {
+            this.StateHasChanged();
+            await dataGrid.Reload();
+        }
+    }
+
+    async void AcaoBotaoInserirServico()
+    {
+        var result = await dialogService.OpenAsync<DialogoEdicaoHorariosProfissional>(
+                      "SERVIÇOS E HORÁRIOS",
+                       new Dictionary<string, object>() { { "servicoProfissionalOriginal", new ServicoProfissional() } },
+                       new DialogOptions() { Width = "500px", Height = "620px", Resizable = true, Draggable = true });
+        if (result != null)
+        {
+            profissionalEmEdicao.ServicosPrestados.Add(result);
+            this.StateHasChanged();
+            await dataGrid.Reload();
+        }
+    }
+
+
+    private void FecharTelaCadastro()
+    {
+        UriHelper.NavigateTo("pesquisa_profissional");        
+    }
+
+}
